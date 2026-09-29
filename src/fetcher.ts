@@ -1,0 +1,61 @@
+export interface FetchResponse {
+  text: string;
+  contentType: string;
+  status: number;
+  url: string;
+}
+
+const BROWSER_HEADERS: Record<string, string> = {
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,text/plain,application/json,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "none",
+  "Sec-Fetch-User": "?1",
+  "Upgrade-Insecure-Requests": "1",
+};
+
+export async function fetchUrl(
+  url: string,
+  timeoutMs: number = 15000,
+  signal?: AbortSignal
+): Promise<FetchResponse> {
+  const parsed = new URL(url);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(`Invalid URL protocol: "${parsed.protocol}". Only http: and https: are supported.`);
+  }
+
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers: BROWSER_HEADERS,
+      signal: combinedSignal,
+      redirect: "follow",
+    });
+  } catch (err: any) {
+    if (err.name === "TimeoutError") {
+      throw new Error(`Fetch timed out after ${timeoutMs}ms: ${url}`);
+    }
+    throw new Error(`Failed to fetch ${url}: ${err.message}`);
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}: HTTP ${response.status} ${response.statusText}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "text/html";
+  const text = await response.text();
+
+  return {
+    text,
+    contentType,
+    status: response.status,
+    url: response.url || url,
+  };
+}
