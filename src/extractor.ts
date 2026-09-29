@@ -11,7 +11,10 @@ const turndownService = new TurndownService({
 
 // Remove images, scripts, styles, iframes from turndown output to save tokens
 turndownService.addRule("stripUnwantedTags", {
-  filter: ["script", "style", "noscript", "svg", "iframe", "object", "embed"],
+  filter: (node) => {
+    const tag = node.nodeName.toLowerCase();
+    return ["script", "style", "noscript", "svg", "iframe", "object", "embed"].includes(tag);
+  },
   replacement: () => "",
 });
 
