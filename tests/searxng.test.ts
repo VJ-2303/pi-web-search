@@ -46,7 +46,6 @@ describe("SearXNG Client", () => {
     const res = await searchSearxng(mockConfig, {
       query: "typescript coding agent",
       num_results: 1,
-      time_range: "week",
       categories: "it",
     });
 
@@ -56,12 +55,33 @@ describe("SearXNG Client", () => {
     expect(calledUrl).toContain("q=typescript+coding+agent");
     expect(calledUrl).toContain("format=json");
     expect(calledUrl).toContain("categories=it");
-    expect(calledUrl).toContain("time_range=week");
+    expect(calledUrl).not.toContain("time_range=");
 
     expect(res.results.length).toBe(1);
     expect(res.results[0].title).toBe("TypeScript Official");
     expect(res.markdown).toContain("### Search Results for \"typescript coding agent\"");
     expect(res.markdown).toContain("[TypeScript Official](https://www.typescriptlang.org)");
+  });
+
+  it("defaults to 4 results when num_results is not provided", async () => {
+    const fiveResults = Array.from({ length: 5 }, (_, i) => ({
+      title: `Result ${i + 1}`,
+      url: `https://example.com/${i + 1}`,
+      content: `Content ${i + 1}`,
+    }));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => ({ query: "test", results: fiveResults }),
+      })
+    );
+
+    const res = await searchSearxng(mockConfig, { query: "test" });
+    expect(res.results.length).toBe(4);
   });
 
   it("handles 403 error with specific guidance on enabling json format", async () => {

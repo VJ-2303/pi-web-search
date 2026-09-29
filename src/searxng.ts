@@ -3,7 +3,6 @@ import type { SearxngConfig } from "./config.js";
 export interface SearchParams {
   query: string;
   num_results?: number;
-  time_range?: "day" | "week" | "month" | "year";
   categories?: string;
 }
 
@@ -62,10 +61,6 @@ export async function searchSearxng(
     url.searchParams.set("categories", categories);
   }
 
-  if (params.time_range) {
-    url.searchParams.set("time_range", params.time_range);
-  }
-
   if (config.defaultEngines) {
     url.searchParams.set("engines", config.defaultEngines);
   }
@@ -114,7 +109,7 @@ export async function searchSearxng(
 
   const data = (await response.json()) as { results?: any[] };
   const rawResults = Array.isArray(data.results) ? data.results : [];
-  const limit = params.num_results && params.num_results > 0 ? params.num_results : 6;
+  const limit = params.num_results && params.num_results > 0 ? params.num_results : 4;
   const sliced = rawResults.slice(0, limit);
 
   const results: SearchResultItem[] = sliced.map((item) => ({

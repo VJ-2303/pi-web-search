@@ -45,22 +45,9 @@ export default function registerExtension(pi: ExtensionAPI): void {
         Type.Integer({
           minimum: 1,
           maximum: 20,
-          default: 6,
-          description: "Number of search results to return (default: 6)",
+          default: 4,
+          description: "Number of search results to return (default: 4)",
         })
-      ),
-      time_range: Type.Optional(
-        Type.Union(
-          [
-            Type.Literal("day"),
-            Type.Literal("week"),
-            Type.Literal("month"),
-            Type.Literal("year"),
-          ],
-          {
-            description: "Optional time range constraint: day, week, month, or year",
-          }
-        )
       ),
       categories: Type.Optional(
         Type.String({

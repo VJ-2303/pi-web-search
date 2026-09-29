@@ -86,8 +86,7 @@ pi-web-search/
 - **Description**: Search the web using a SearXNG instance. Returns a ranked list of relevant results with snippets and links.
 - **Parameters (TypeBox)**:
   - `query` (`Type.String({ description: "Search query string" })`): Required.
-  - `num_results` (`Type.Optional(Type.Integer({ minimum: 1, maximum: 20, default: 6, description: "Number of search results to return" }))`): Optional.
-  - `time_range` (`Type.Optional(Type.Union([Type.Literal("day"), Type.Literal("week"), Type.Literal("month"), Type.Literal("year")]))`): Optional.
+  - `num_results` (`Type.Optional(Type.Integer({ minimum: 1, maximum: 20, default: 4, description: "Number of search results to return" }))`): Optional.
   - `categories` (`Type.Optional(Type.String({ description: "Comma-separated SearXNG categories, e.g. general, it, science" }))`): Optional.
 - **Output Format**:
   Markdown list formatted for token economy:

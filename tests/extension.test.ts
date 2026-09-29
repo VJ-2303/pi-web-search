@@ -24,6 +24,8 @@ describe("Pi Extension Registration", () => {
     const searchTool = registeredTools.get("web_search");
     expect(searchTool.annotations?.readOnlyHint).toBe(true);
     expect(searchTool.annotations?.openWorldHint).toBe(true);
+    expect(searchTool.parameters.properties.time_range).toBeUndefined();
+    expect(searchTool.parameters.properties.num_results.default).toBe(4);
 
     const fetchTool = registeredTools.get("web_fetch");
     expect(fetchTool.annotations?.readOnlyHint).toBe(true);

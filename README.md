@@ -74,8 +74,7 @@ Search the web using SearXNG.
 
 - **Parameters**:
   - `query` (string, required): The search terms.
-  - `num_results` (integer, optional, default: 6): Number of results to return (1-20).
-  - `time_range` (string, optional): `"day"`, `"week"`, `"month"`, or `"year"`.
+  - `num_results` (integer, optional, default: 4): Number of results to return (1-20).
   - `categories` (string, optional): Comma-separated SearXNG categories (e.g. `general`, `it`, `science`).
 
 ### `web_fetch`
@@ -101,7 +100,3 @@ npm test
 # Typecheck TypeScript
 npm run typecheck
 ```
-
-## License
-
-MIT
