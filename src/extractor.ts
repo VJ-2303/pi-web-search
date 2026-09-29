@@ -18,9 +18,27 @@ turndownService.addRule("stripUnwantedTags", {
   replacement: () => "",
 });
 
+// Strip data-URI image payloads while preserving alt text or external URLs
+turndownService.addRule("images", {
+  filter: "img",
+  replacement: (_content, node) => {
+    const el = node as HTMLElement;
+    const alt = el.getAttribute("alt") || "";
+    const src = el.getAttribute("src") || "";
+    if (src.startsWith("data:")) {
+      return alt ? `[Image: ${alt}]` : "";
+    }
+    return alt ? `![${alt}](${src})` : src ? `![](${src})` : "";
+  },
+});
+
 export interface ExtractionResult {
   title?: string;
   markdown: string;
+}
+
+function cleanMarkdownWhitespace(md: string): string {
+  return md.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export function extractMarkdownFromHtml(html: string, url?: string): ExtractionResult {
@@ -32,10 +50,10 @@ export function extractMarkdownFromHtml(html: string, url?: string): ExtractionR
     const parsed = reader.parse();
 
     if (parsed && parsed.content) {
-      const markdown = turndownService.turndown(parsed.content).trim();
+      const rawMarkdown = turndownService.turndown(parsed.content);
       return {
         title: parsed.title || undefined,
-        markdown,
+        markdown: cleanMarkdownWhitespace(rawMarkdown),
       };
     }
   } catch {
@@ -45,14 +63,14 @@ export function extractMarkdownFromHtml(html: string, url?: string): ExtractionR
   // Fallback: extract entire body if readability didn't find an article
   const body = document.body || document;
   const fallbackHtml = body.innerHTML || html;
-  const markdown = turndownService.turndown(fallbackHtml).trim();
+  const rawMarkdown = turndownService.turndown(fallbackHtml);
 
   const titleElement = document.querySelector("title");
   const title = titleElement ? titleElement.textContent?.trim() : undefined;
 
   return {
     title,
-    markdown,
+    markdown: cleanMarkdownWhitespace(rawMarkdown),
   };
 }
 

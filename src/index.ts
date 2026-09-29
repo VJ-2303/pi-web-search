@@ -36,22 +36,22 @@ export default function registerExtension(pi: ExtensionAPI): void {
     name: "web_search",
     label: "Web Search",
     description:
-      "Search the web using user-configured SearXNG instance. Returns a ranked list of relevant pages with links and concise snippets.",
+      "Search the web using SearXNG. Returns a ranked list of relevant results with titles, URLs, and concise snippets. Use this tool first to discover sources before fetching full articles with web_fetch.",
     parameters: Type.Object({
       query: Type.String({
-        description: "Search query string",
+        description: "Specific search query terms or keywords",
       }),
       num_results: Type.Optional(
         Type.Integer({
           minimum: 1,
           maximum: 20,
           default: 4,
-          description: "Number of search results to return (default: 4)",
+          description: "Number of search results to return (default: 4, min: 1, max: 20)",
         })
       ),
       categories: Type.Optional(
         Type.String({
-          description: "Optional SearXNG category (e.g. general, it, science, news)",
+          description: "Optional SearXNG category filter (e.g. 'general', 'it', 'science', 'news')",
         })
       ),
     }),
@@ -79,10 +79,10 @@ export default function registerExtension(pi: ExtensionAPI): void {
     name: "web_fetch",
     label: "Web Fetch",
     description:
-      "Fetch content from a web URL and extract clean, readable markdown stripped of navigation, boilerplate, ads, and footers.",
+      "Fetch an HTTP/HTTPS URL and convert its main content to clean, token-efficient Markdown. Automatically strips scripts, styles, navigation bars, ads, and footers. When content is truncated, call again with the provided offset to read subsequent sections.",
     parameters: Type.Object({
       url: Type.String({
-        description: "Absolute HTTP/HTTPS URL of the web page to fetch",
+        description: "Full HTTP or HTTPS URL to fetch",
       }),
       offset: Type.Optional(
         Type.Integer({
@@ -96,7 +96,7 @@ export default function registerExtension(pi: ExtensionAPI): void {
           minimum: 500,
           maximum: 50000,
           default: 15000,
-          description: "Maximum number of characters to return (default: 15000 / ~3500 tokens)",
+          description: "Maximum number of characters to return per request (default: 15000 / ~3500 tokens)",
         })
       ),
     }),

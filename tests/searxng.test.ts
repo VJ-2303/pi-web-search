@@ -104,4 +104,19 @@ describe("SearXNG Client", () => {
     const md = formatSearchResults("unknown query", []);
     expect(md).toBe('No results found for "unknown query".');
   });
+
+  it("sanitizes HTML tags and decodes entities in snippets", () => {
+    const dirtyResults = [
+      {
+        title: "Test &amp; Demo",
+        url: "https://example.com",
+        content: "Learn <b>TypeScript</b> &quot;coding&quot; with &lt;agents&gt; &amp; tools.",
+      },
+    ];
+    const md = formatSearchResults("test", dirtyResults);
+    expect(md).toContain('Learn TypeScript "coding" with <agents> & tools.');
+    expect(md).not.toContain("<b>");
+    expect(md).not.toContain("&quot;");
+    expect(md).not.toContain("&amp;");
+  });
 });

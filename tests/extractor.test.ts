@@ -72,4 +72,34 @@ describe("Content Extractor", () => {
     expect(sliced.truncated).toBe(false);
     expect(sliced.text).toBe("Short text");
   });
+
+  it("strips massive data-URI image payloads while preserving alt text", () => {
+    const htmlWithDataUri = `
+      <article>
+        <h1>Article with Images</h1>
+        <p>Before image</p>
+        <img alt="Diagram" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" />
+        <img alt="Real Logo" src="https://example.com/logo.png" />
+        <p>After image</p>
+      </article>
+    `;
+    const res = extractMarkdownFromHtml(htmlWithDataUri);
+    expect(res.markdown).toContain("[Image: Diagram]");
+    expect(res.markdown).not.toContain("data:image/png;base64");
+    expect(res.markdown).toContain("![Real Logo](https://example.com/logo.png)");
+  });
+
+  it("collapses excessive consecutive blank lines", () => {
+    const htmlWithGaps = `
+      <article>
+        <h1>Spaced Article</h1>
+        <div><br/><br/><br/></div>
+        <p>Paragraph 1</p>
+        <div><br/><br/><br/></div>
+        <p>Paragraph 2</p>
+      </article>
+    `;
+    const res = extractMarkdownFromHtml(htmlWithGaps);
+    expect(res.markdown).not.toMatch(/\n{3,}/);
+  });
 });

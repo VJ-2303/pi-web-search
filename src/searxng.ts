@@ -20,6 +20,19 @@ export interface SearchResponse {
   markdown: string;
 }
 
+export function cleanSnippetText(raw: string): string {
+  return raw
+    .replace(/<[^>]+>/g, "")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function formatSearchResults(query: string, results: SearchResultItem[]): string {
   if (results.length === 0) {
     return `No results found for "${query}".`;
@@ -28,9 +41,10 @@ export function formatSearchResults(query: string, results: SearchResultItem[]):
   const lines: string[] = [`### Search Results for "${query}" (${results.length} results)\n`];
 
   results.forEach((item, index) => {
-    lines.push(`${index + 1}. **[${item.title || "Untitled"}](${item.url})**`);
+    const cleanTitle = cleanSnippetText(item.title || "Untitled");
+    lines.push(`${index + 1}. **[${cleanTitle}](${item.url})**`);
     if (item.content) {
-      const cleanSnippet = item.content.replace(/\s+/g, " ").trim();
+      const cleanSnippet = cleanSnippetText(item.content);
       lines.push(`   > ${cleanSnippet}`);
     }
     if (item.publishedDate) {
