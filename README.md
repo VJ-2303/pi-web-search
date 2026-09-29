@@ -48,20 +48,20 @@ If the file does not exist when a tool is called, a template is automatically cr
 
 ## Installation
 
-### Option 1: Install with `pi install`
+### Installation via Pi Package Manager
 
-From your Pi session or terminal:
+Run in your terminal or inside a Pi session:
 
 ```bash
-pi install npm:pi-web-search
-# or from git / local path:
-pi install /path/to/pi-web-search
+pi install github:VJ-2303/pi-web-search
 ```
 
-### Option 2: Run directly during development
+### Local Development / Manual Load
+
+Load directly from local clone:
 
 ```bash
-pi --extension /home/vj/Code/pi-web-search/src/index.ts
+pi --extension ./src/index.ts
 ```
 
 ---

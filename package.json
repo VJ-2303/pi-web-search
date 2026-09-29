@@ -10,8 +10,17 @@
   "main": "./src/index.ts",
   "files": [
     "src",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VJ-2303/pi-web-search.git"
+  },
+  "bugs": {
+    "url": "https://github.com/VJ-2303/pi-web-search/issues"
+  },
+  "homepage": "https://github.com/VJ-2303/pi-web-search#readme",
   "pi": {
     "extensions": [
       "./src/index.ts"
