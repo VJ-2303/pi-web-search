@@ -2,6 +2,8 @@ import { parseHTML } from "linkedom";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 
+const MAX_RAW_HTML_CHARS = 200_000; // 200KB raw cap to protect CPU/memory
+
 const turndownService = new TurndownService({
   headingStyle: "atx",
   codeBlockStyle: "fenced",
@@ -9,7 +11,7 @@ const turndownService = new TurndownService({
   bulletListMarker: "-",
 });
 
-// Remove images, scripts, styles, iframes from turndown output to save tokens
+// Remove scripts, styles, iframes from turndown output to save tokens
 turndownService.addRule("stripUnwantedTags", {
   filter: (node) => {
     const tag = node.nodeName.toLowerCase();
@@ -42,17 +44,57 @@ function cleanMarkdownWhitespace(md: string): string {
 }
 
 export function extractMarkdownFromHtml(html: string, url?: string): ExtractionResult {
-  const { document } = parseHTML(html);
+  if (!html || html.trim().length === 0) {
+    return { markdown: "" };
+  }
+
+  // Cap giant HTML input to prevent regex/parser catastrophic backtracking
+  const safeHtml = html.length > MAX_RAW_HTML_CHARS ? html.slice(0, MAX_RAW_HTML_CHARS) : html;
+  const { document } = parseHTML(safeHtml);
+
+  // Pre-process DOM: resolve relative URLs and clean javascript: hrefs
+  if (url) {
+    try {
+      const baseUrl = new URL(url).href;
+      for (const a of document.querySelectorAll("a[href]")) {
+        const href = a.getAttribute("href")?.trim();
+        if (href) {
+          if (href.toLowerCase().startsWith("javascript:")) {
+            a.removeAttribute("href");
+          } else if (!href.startsWith("#") && !href.startsWith("data:") && !href.startsWith("mailto:")) {
+            try {
+              a.setAttribute("href", new URL(href, baseUrl).href);
+            } catch {
+              // keep existing href if URL resolution fails
+            }
+          }
+        }
+      }
+
+      for (const img of document.querySelectorAll("img[src]")) {
+        const src = img.getAttribute("src")?.trim();
+        if (src && !src.startsWith("data:") && !src.startsWith("http://") && !src.startsWith("https://")) {
+          try {
+            img.setAttribute("src", new URL(src, baseUrl).href);
+          } catch {
+            // keep existing src if URL resolution fails
+          }
+        }
+      }
+    } catch {
+      // Invalid baseUrl, continue without resolving relative URLs
+    }
+  }
 
   // Attempt main article extraction via Readability
   try {
     const reader = new Readability(document);
     const parsed = reader.parse();
 
-    if (parsed && parsed.content) {
+    if (parsed && parsed.content && parsed.content.trim().length > 0) {
       const rawMarkdown = turndownService.turndown(parsed.content);
       return {
-        title: parsed.title || undefined,
+        title: parsed.title ? parsed.title.trim() : undefined,
         markdown: cleanMarkdownWhitespace(rawMarkdown),
       };
     }
@@ -61,8 +103,7 @@ export function extractMarkdownFromHtml(html: string, url?: string): ExtractionR
   }
 
   // Fallback: extract entire body if readability didn't find an article
-  const body = document.body || document;
-  const fallbackHtml = body.innerHTML || html;
+  const fallbackHtml = document.body?.innerHTML || document.toString() || safeHtml;
   const rawMarkdown = turndownService.turndown(fallbackHtml);
 
   const titleElement = document.querySelector("title");
@@ -82,9 +123,18 @@ export interface SlicedResult {
 
 export function sliceContent(content: string, offset: number = 0, maxLength: number = 15000): SlicedResult {
   const totalLength = content.length;
-  const start = Math.max(0, offset);
+  const safeOffset = Math.max(0, isNaN(offset) ? 0 : Math.floor(offset));
+  const safeMax = Math.max(1, isNaN(maxLength) ? 15000 : Math.floor(maxLength));
 
-  if (start >= totalLength) {
+  if (totalLength === 0) {
+    return {
+      text: "*Empty content returned from web page.*",
+      truncated: false,
+      totalLength: 0,
+    };
+  }
+
+  if (safeOffset >= totalLength) {
     return {
       text: `*Offset (${offset}) exceeds total content length (${totalLength}). No more content.*`,
       truncated: false,
@@ -92,13 +142,13 @@ export function sliceContent(content: string, offset: number = 0, maxLength: num
     };
   }
 
-  const end = Math.min(start + maxLength, totalLength);
-  const sliced = content.slice(start, end);
+  const end = Math.min(safeOffset + safeMax, totalLength);
+  const sliced = content.slice(safeOffset, end);
   const truncated = end < totalLength;
 
   let text = sliced;
   if (truncated) {
-    text += `\n\n---\n*Note: Content truncated. Showing characters ${start} to ${end} of ${totalLength}. Call web_fetch with offset=${end} to read next chunk.*`;
+    text += `\n\n---\n*Note: Content truncated. Showing characters ${safeOffset} to ${end} of ${totalLength}. Call web_fetch with offset=${end} to read next chunk.*`;
   }
 
   return {
@@ -177,6 +227,16 @@ export function processWebResponse(
 
   // 4. HTML (default)
   const extracted = extractMarkdownFromHtml(rawBody, url);
+  if (!extracted.markdown || extracted.markdown.trim().length === 0) {
+    const msg = "*Empty content returned from web page.*";
+    return {
+      title: extracted.title,
+      content: msg,
+      fullContent: msg,
+      truncated: false,
+    };
+  }
+
   const fullText = extracted.title && !extracted.markdown.startsWith(`# ${extracted.title}`)
     ? `# ${extracted.title}\n\n${extracted.markdown}`
     : extracted.markdown;
