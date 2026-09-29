@@ -13,6 +13,7 @@ High-efficiency web search and content extraction extension for the [Pi coding a
   - Fast native HTTP fetching with `AbortController` timeouts and browser impersonation headers.
   - Smart content-length truncation (~15,000 chars / ~3,500 tokens default) with `offset` support for reading long documents.
   - Smart Content-Type routing: HTML parsed via Readability, text/json/markdown passed directly, binary rejected with clear explanation.
+  - **Automatic Disk Caching**: Full extracted Markdown is automatically cached to `~/.pi/cache/web_search/<slug>-<hash>.md` for instant inspection or grep across turns without context bloat or network re-fetching.
 
 ---
 

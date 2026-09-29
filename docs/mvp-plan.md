@@ -119,6 +119,9 @@ pi-web-search/
        ---
        *Note: Content truncated. Showing characters 0 to 15000 of 42300. Call web_fetch with offset=15000 to read next chunk.*
        ```
+  3. Disk Caching:
+     - Automatically cache full extracted Markdown document to `~/.pi/cache/web_search/<slug>-<hash>.md`.
+     - Prepend cache path banner to returned content and include `cachedFilePath` in result `details`.
 
 ---
 

@@ -111,6 +111,7 @@ export function sliceContent(content: string, offset: number = 0, maxLength: num
 export interface ProcessedResponse {
   title?: string;
   content: string;
+  fullContent: string;
   truncated: boolean;
 }
 
@@ -135,8 +136,10 @@ export function processWebResponse(
   ];
 
   if (binaryTypes.some((bin) => normalizedType.includes(bin))) {
+    const msg = `[Binary content detected (${contentType}). Reading binary files is not supported.]`;
     return {
-      content: `[Binary content detected (${contentType}). Reading binary files is not supported.]`,
+      content: msg,
+      fullContent: msg,
       truncated: false,
     };
   }
@@ -149,11 +152,16 @@ export function processWebResponse(
       const sliced = sliceContent(pretty, offset, maxLength);
       return {
         content: sliced.text,
+        fullContent: pretty,
         truncated: sliced.truncated,
       };
     } catch {
       const sliced = sliceContent(rawBody, offset, maxLength);
-      return { content: sliced.text, truncated: sliced.truncated };
+      return {
+        content: sliced.text,
+        fullContent: rawBody,
+        truncated: sliced.truncated,
+      };
     }
   }
 
@@ -162,6 +170,7 @@ export function processWebResponse(
     const sliced = sliceContent(rawBody, offset, maxLength);
     return {
       content: sliced.text,
+      fullContent: rawBody,
       truncated: sliced.truncated,
     };
   }
@@ -176,6 +185,7 @@ export function processWebResponse(
   return {
     title: extracted.title,
     content: sliced.text,
+    fullContent: fullText,
     truncated: sliced.truncated,
   };
 }

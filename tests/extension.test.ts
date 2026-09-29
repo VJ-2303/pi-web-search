@@ -61,4 +61,29 @@ describe("Pi Extension Registration", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("executes web_fetch, caches full content to disk, and includes cache notice", async () => {
+    registerExtension(mockPi);
+    const fetchTool = registeredTools.get("web_fetch");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        url: "https://example.com/cached-article",
+        headers: new Headers({ "content-type": "text/html" }),
+        text: async () => "<article><h1>Cached Title</h1><p>Full body text</p></article>",
+      })
+    );
+
+    const result = await fetchTool.execute("call-2", { url: "https://example.com/cached-article" });
+    expect(result.content[0].type).toBe("text");
+    expect(result.content[0].text).toContain("Cached full content");
+    expect(result.content[0].text).toContain("Cached Title");
+    expect(result.details.cachedFilePath).toBeDefined();
+    expect(result.details.cachedFilePath).toContain("example-com-cached-article");
+
+    vi.unstubAllGlobals();
+  });
 });

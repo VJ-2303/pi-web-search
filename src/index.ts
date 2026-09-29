@@ -3,6 +3,7 @@ import { loadConfig } from "./config.js";
 import { searchSearxng } from "./searxng.js";
 import { fetchUrl } from "./fetcher.js";
 import { processWebResponse } from "./extractor.js";
+import { saveToCache } from "./cache.js";
 
 // Minimal interface matching Pi ExtensionAPI tool registration
 export interface ExtensionAPI {
@@ -79,7 +80,7 @@ export default function registerExtension(pi: ExtensionAPI): void {
     name: "web_fetch",
     label: "Web Fetch",
     description:
-      "Fetch an HTTP/HTTPS URL and convert its main content to clean, token-efficient Markdown. Automatically strips scripts, styles, navigation bars, ads, and footers. When content is truncated, call again with the provided offset to read subsequent sections.",
+      "Fetch an HTTP/HTTPS URL and convert its main content to clean, token-efficient Markdown. Automatically strips scripts, styles, navigation bars, ads, and footers, and caches the full document to disk for reuse. When content is truncated, call again with the provided offset to read subsequent sections.",
     parameters: Type.Object({
       url: Type.String({
         description: "Full HTTP or HTTPS URL to fetch",
@@ -117,12 +118,17 @@ export default function registerExtension(pi: ExtensionAPI): void {
         params.max_length || 15000
       );
 
+      const cacheResult = saveToCache(fetched.url, processed.fullContent);
+      const cacheNotice = `*Cached full content (${cacheResult.charCount.toLocaleString()} chars) to: ${cacheResult.filePath}*\n\n`;
+
       return {
-        content: [{ type: "text", text: processed.content }],
+        content: [{ type: "text", text: cacheNotice + processed.content }],
         details: {
           url: fetched.url,
           title: processed.title,
           truncated: processed.truncated,
+          cachedFilePath: cacheResult.filePath,
+          totalChars: cacheResult.charCount,
         },
       };
     },
