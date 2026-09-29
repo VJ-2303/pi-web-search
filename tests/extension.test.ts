@@ -86,4 +86,42 @@ describe("Pi Extension Registration", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("propagates errors from searchSearxng to caller in web_search", async () => {
+    registerExtension(mockPi);
+    const searchTool = registeredTools.get("web_search");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("Connection refused"))
+    );
+
+    await expect(searchTool.execute("call-3", { query: "fail" })).rejects.toThrow(
+      "Connection refused"
+    );
+
+    vi.unstubAllGlobals();
+  });
+
+  it("propagates errors from fetchUrl to caller in web_fetch", async () => {
+    registerExtension(mockPi);
+    const fetchTool = registeredTools.get("web_fetch");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+        url: "https://example.com/missing",
+        text: async () => "Not found",
+      })
+    );
+
+    await expect(fetchTool.execute("call-4", { url: "https://example.com/missing" })).rejects.toThrow(
+      "HTTP 404 Not Found"
+    );
+
+    vi.unstubAllGlobals();
+  });
 });

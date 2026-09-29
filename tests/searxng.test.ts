@@ -119,4 +119,71 @@ describe("SearXNG Client", () => {
     expect(md).not.toContain("&quot;");
     expect(md).not.toContain("&amp;");
   });
+
+  it("rejects empty or whitespace-only search queries", async () => {
+    await expect(searchSearxng(mockConfig, { query: "   " })).rejects.toThrow(
+      "Search query cannot be empty"
+    );
+  });
+
+  it("handles network timeout error gracefully", async () => {
+    const timeoutErr = new Error("The operation was aborted due to timeout");
+    timeoutErr.name = "TimeoutError";
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(timeoutErr));
+
+    await expect(
+      searchSearxng(mockConfig, { query: "test" })
+    ).rejects.toThrow(/timed out/);
+  });
+
+  it("handles HTTP 500 error from SearXNG", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+        text: async () => "Engine error",
+      })
+    );
+
+    await expect(
+      searchSearxng(mockConfig, { query: "test" })
+    ).rejects.toThrow(/SearXNG returned error 500/);
+  });
+
+  it("sends Authorization header when apiKey is configured", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ results: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const authConfig = { ...mockConfig, apiKey: "my-secret-key", defaultEngines: "google,duckduckgo" };
+    await searchSearxng(authConfig, { query: "secure query" });
+
+    const callHeaders = fetchMock.mock.calls[0][1].headers;
+    expect(callHeaders["Authorization"]).toBe("Bearer my-secret-key");
+
+    const callUrl = fetchMock.mock.calls[0][0].toString();
+    expect(callUrl).toContain("engines=google%2Cduckduckgo");
+  });
+
+  it("handles response missing results array gracefully", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => ({}),
+      })
+    );
+
+    const res = await searchSearxng(mockConfig, { query: "test" });
+    expect(res.results).toEqual([]);
+    expect(res.markdown).toBe('No results found for "test".');
+  });
 });

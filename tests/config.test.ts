@@ -47,4 +47,20 @@ describe("Configuration Manager", () => {
     fs.writeFileSync(testConfigPath, JSON.stringify({ endpoint: 123 }), "utf-8");
     expect(() => loadConfig(testConfigPath)).toThrow(/missing or invalid "endpoint"/);
   });
+
+  it("throws error when config file contains malformed JSON", () => {
+    fs.writeFileSync(testConfigPath, "{ endpoint: broken json }", "utf-8");
+    expect(() => loadConfig(testConfigPath)).toThrow();
+  });
+
+  it("creates deeply nested directories if parent path does not exist", () => {
+    const deepPath = path.join(tmpDir, "level1", "level2", "searxng.json");
+    expect(() => loadConfig(deepPath)).toThrow(/SearXNG config not found/);
+    expect(fs.existsSync(deepPath)).toBe(true);
+  });
+
+  it("resolves default path to ~/.pi/agent/searxng.json", () => {
+    const defaultPath = getDefaultConfigPath();
+    expect(defaultPath).toBe(path.join(os.homedir(), ".pi", "agent", "searxng.json"));
+  });
 });

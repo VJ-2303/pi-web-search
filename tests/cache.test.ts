@@ -32,4 +32,22 @@ describe("Web Cache Manager", () => {
     expect(result.charCount).toBe(markdown.length);
     expect(result.filePath).toContain("example-com-docs-api");
   });
+
+  it("handles malformed URLs gracefully by falling back to page hash", () => {
+    const filename = getCacheFilename("not-a-valid-url");
+    expect(filename).toMatch(/^page-[a-f0-9]{8}\.md$/);
+  });
+
+  it("handles URLs with ports, anchors, and queries", () => {
+    const filename = getCacheFilename("http://localhost:3000/app/v1?user=123#overview");
+    expect(filename).toContain("localhost-app-v1");
+  });
+
+  it("overwrites existing cache file when called repeatedly for the same URL", () => {
+    const url = "https://example.com/live-data";
+    saveToCache(url, "version 1", tmpDir);
+    const updated = saveToCache(url, "version 2 (updated)", tmpDir);
+
+    expect(fs.readFileSync(updated.filePath, "utf-8")).toBe("version 2 (updated)");
+  });
 });

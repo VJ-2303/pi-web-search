@@ -40,4 +40,34 @@ describe("Web Fetcher", () => {
       /HTTP 404 Not Found/
     );
   });
+
+  it("rejects non-http protocols like file: or ftp:", async () => {
+    await expect(fetchUrl("file:///etc/passwd")).rejects.toThrow(
+      /Invalid URL protocol/
+    );
+    await expect(fetchUrl("ftp://ftp.example.com/file")).rejects.toThrow(
+      /Invalid URL protocol/
+    );
+  });
+
+  it("handles fetch timeout error", async () => {
+    const timeoutErr = new Error("The operation was aborted due to timeout");
+    timeoutErr.name = "TimeoutError";
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(timeoutErr));
+
+    await expect(fetchUrl("https://example.com/slow", 2000)).rejects.toThrow(
+      /Fetch timed out after 2000ms/
+    );
+  });
+
+  it("handles network connection failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("getaddrinfo ENOTFOUND example.invalid"))
+    );
+
+    await expect(fetchUrl("https://example.invalid")).rejects.toThrow(
+      /Failed to fetch https:\/\/example.invalid: getaddrinfo ENOTFOUND/
+    );
+  });
 });

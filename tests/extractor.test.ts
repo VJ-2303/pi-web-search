@@ -102,4 +102,50 @@ describe("Content Extractor", () => {
     const res = extractMarkdownFromHtml(htmlWithGaps);
     expect(res.markdown).not.toMatch(/\n{3,}/);
   });
+
+  it("handles offset exceeding content length cleanly", () => {
+    const res = sliceContent("Short content", 50, 100);
+    expect(res.truncated).toBe(false);
+    expect(res.text).toContain("exceeds total content length");
+  });
+
+  it("normalizes negative offset to 0", () => {
+    const res = sliceContent("Hello world", -10, 5);
+    expect(res.text).toContain("Hello");
+  });
+
+  it("converts HTML tables and code blocks into standard markdown", () => {
+    const html = `
+      <article>
+        <h1>Code & Table</h1>
+        <pre><code class="language-typescript">const x: number = 42;</code></pre>
+        <table>
+          <thead>
+            <tr><th>Header 1</th><th>Header 2</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Cell 1</td><td>Cell 2</td></tr>
+          </tbody>
+        </table>
+      </article>
+    `;
+    const res = extractMarkdownFromHtml(html);
+    expect(res.markdown).toContain("```");
+    expect(res.markdown).toContain("const x: number = 42;");
+    expect(res.markdown).toContain("Cell 1");
+    expect(res.markdown).toContain("Header 1");
+  });
+
+  it("handles case-insensitive and parameterized Content-Type headers", () => {
+    const jsonRes = processWebResponse('{"hello":"world"}', "APPLICATION/JSON; charset=utf-8");
+    expect(jsonRes.content).toContain('```json\n{\n  "hello": "world"\n}\n```');
+
+    const htmlRes = processWebResponse("<p>Hello</p>", "TEXT/HTML; charset=iso-8859-1");
+    expect(htmlRes.content).toContain("Hello");
+  });
+
+  it("falls back to raw string when application/json has invalid JSON syntax", () => {
+    const res = processWebResponse("{ broken json", "application/json");
+    expect(res.content).toBe("{ broken json");
+  });
 });
