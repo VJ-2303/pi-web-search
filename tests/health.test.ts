@@ -60,6 +60,21 @@ describe("SearXNG Health Check", () => {
     expect(result.message).toContain("JSON format disabled");
   });
 
+  it("requests /search under a path-mounted endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      json: async () => ({ results: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await checkSearxngHealth({ endpoint: "https://myhost.com/searxng" });
+    expect(result.healthy).toBe(true);
+    const requested = new URL(fetchMock.mock.calls[0][0] as string);
+    expect(requested.pathname).toBe("/searxng/search");
+  });
+
   it("reports unhealthy when server returns 500 error", async () => {
     vi.stubGlobal(
       "fetch",

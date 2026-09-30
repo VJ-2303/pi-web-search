@@ -17,6 +17,8 @@ const BROWSER_HEADERS: Record<string, string> = {
   "Upgrade-Insecure-Requests": "1",
 };
 
+const MAX_FETCH_BYTES = 5_000_000; // 5 MB body cap
+
 export async function fetchUrl(
   url: string,
   timeoutMs: number = 15000,
@@ -50,7 +52,47 @@ export async function fetchUrl(
   }
 
   const contentType = response.headers.get("content-type") || "text/html";
-  const text = await response.text();
+
+  const declaredLength = Number(response.headers.get("content-length") || 0);
+  if (declaredLength > MAX_FETCH_BYTES) {
+    throw new Error(
+      `Response body too large (${declaredLength} bytes, limit ${MAX_FETCH_BYTES}). URL: ${url}`
+    );
+  }
+
+  let text: string;
+  if (response.body && typeof response.body.getReader === "function") {
+    // Stream-cap so oversized bodies are aborted without full buffering
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > MAX_FETCH_BYTES) {
+        reader.cancel().catch(() => {});
+        throw new Error(
+          `Response body too large (>${MAX_FETCH_BYTES} bytes). URL: ${url}`
+        );
+      }
+      chunks.push(value);
+    }
+    const merged = new Uint8Array(received);
+    let pos = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, pos);
+      pos += chunk.byteLength;
+    }
+    text = new TextDecoder("utf-8").decode(merged);
+  } else {
+    text = await response.text();
+    if (text.length > MAX_FETCH_BYTES) {
+      throw new Error(
+        `Response body too large (>${MAX_FETCH_BYTES} bytes). URL: ${url}`
+      );
+    }
+  }
 
   return {
     text,

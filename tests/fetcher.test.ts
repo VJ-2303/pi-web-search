@@ -60,6 +60,43 @@ describe("Web Fetcher", () => {
     );
   });
 
+  it("rejects response when content-length exceeds the size cap", async () => {
+    const textMock = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        url: "https://example.com/huge",
+        headers: new Headers({
+          "content-type": "text/html",
+          "content-length": String(60_000_000),
+        }),
+        text: textMock,
+      })
+    );
+
+    await expect(fetchUrl("https://example.com/huge")).rejects.toThrow(
+      /too large/i
+    );
+    expect(textMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects response when streamed body exceeds the size cap (no content-length)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        url: "https://example.com/chunky",
+        headers: new Headers({ "content-type": "text/html" }),
+        text: async () => "x".repeat(6_000_000),
+      })
+    );
+
+    await expect(fetchUrl("https://example.com/chunky")).rejects.toThrow(/too large/i);
+  });
+
   it("handles network connection failure", async () => {
     vi.stubGlobal(
       "fetch",

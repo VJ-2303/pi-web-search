@@ -41,8 +41,9 @@ export function formatSearchResults(query: string, results: SearchResultItem[]):
   const lines: string[] = [`### Search Results for "${query}" (${results.length} results)\n`];
 
   results.forEach((item, index) => {
-    const cleanTitle = cleanSnippetText(item.title || "Untitled");
-    lines.push(`${index + 1}. **[${cleanTitle}](${item.url})**`);
+    const cleanTitle = cleanSnippetText(item.title || "Untitled").replace(/([\[\]])/g, "\\$1");
+    const safeUrl = item.url.replace(/\(/g, "%28").replace(/\)/g, "%29");
+    lines.push(`${index + 1}. **[${cleanTitle}](${safeUrl})**`);
     if (item.content) {
       const cleanSnippet = cleanSnippetText(item.content);
       lines.push(`   > ${cleanSnippet}`);
@@ -159,7 +160,7 @@ export async function checkSearxngHealth(
   const timeoutSignal = AbortSignal.timeout(timeoutMs);
   const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 
-  const url = new URL("/search", config.endpoint);
+  const url = new URL(`${config.endpoint}/search`);
   url.searchParams.set("q", "ping");
   url.searchParams.set("format", "json");
 

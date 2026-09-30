@@ -1,4 +1,4 @@
-import { Type } from "@sinclair/typebox";
+import { Type } from "typebox";
 import { loadConfig, ensureConfigFile } from "./config.js";
 import { searchSearxng } from "./searxng.js";
 import { fetchUrl } from "./fetcher.js";
@@ -133,8 +133,15 @@ export default function registerExtension(pi: ExtensionAPI): void {
         params.max_length || 15000
       );
 
-      const cacheResult = saveToCache(fetched.url, processed.fullContent);
-      const cacheNotice = `*Cached full content (${cacheResult.charCount.toLocaleString()} chars) to: ${cacheResult.filePath}*\n\n`;
+      let cacheResult: { filePath: string; charCount: number } | undefined;
+      try {
+        cacheResult = saveToCache(fetched.url, processed.fullContent);
+      } catch {
+        // Cache is best-effort; fetched content must still be returned
+      }
+      const cacheNotice = cacheResult
+        ? `*Cached full content (${cacheResult.charCount.toLocaleString()} chars) to: ${cacheResult.filePath}*\n\n`
+        : "";
 
       return {
         content: [{ type: "text", text: cacheNotice + processed.content }],
@@ -142,8 +149,8 @@ export default function registerExtension(pi: ExtensionAPI): void {
           url: fetched.url,
           title: processed.title,
           truncated: processed.truncated,
-          cachedFilePath: cacheResult.filePath,
-          totalChars: cacheResult.charCount,
+          cachedFilePath: cacheResult?.filePath,
+          totalChars: cacheResult?.charCount,
         },
       };
     },

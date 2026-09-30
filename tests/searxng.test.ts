@@ -120,6 +120,17 @@ describe("SearXNG Client", () => {
     expect(md).not.toContain("&amp;");
   });
 
+  it("escapes markdown-breaking characters in titles and URLs", () => {
+    const md = formatSearchResults("go", [
+      {
+        title: "Go [official] site",
+        url: "https://en.wikipedia.org/wiki/Go_(programming)",
+        content: "",
+      },
+    ]);
+    expect(md).toContain("[Go \\[official\\] site](https://en.wikipedia.org/wiki/Go_%28programming%29)");
+  });
+
   it("rejects empty or whitespace-only search queries", async () => {
     await expect(searchSearxng(mockConfig, { query: "   " })).rejects.toThrow(
       "Search query cannot be empty"
