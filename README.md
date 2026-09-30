@@ -93,6 +93,15 @@ Retrieve a web page and convert it into concise, article-focused Markdown.
 
 ---
 
+## Slash Commands
+
+Inside your Pi interactive session, manage the extension via the `/searxng` slash command:
+
+- `/searxng config`: Opens an interactive settings menu to inspect and update configuration (`endpoint`, `apiKey`, `categories`, `defaultEngines`, `timeoutMs`), test live connectivity, and save changes to `~/.pi/agent/searxng.json`.
+- `/searxng status`: Pings your SearXNG instance, measures network latency, validates `json` format availability, and displays structured diagnostics with troubleshooting guidance if unhealthy.
+
+---
+
 ## Development
 
 ```bash

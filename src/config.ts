@@ -56,3 +56,27 @@ export function loadConfig(configPath?: string): SearxngConfig {
     endpoint: parsed.endpoint.replace(/\/+$/, ""),
   };
 }
+
+export function saveConfig(config: SearxngConfig, configPath?: string): void {
+  const resolvedPath = configPath || getDefaultConfigPath();
+  if (!config.endpoint || typeof config.endpoint !== "string" || config.endpoint.trim().length === 0) {
+    throw new Error("Invalid endpoint: must be a non-empty URL string");
+  }
+
+  const parentDir = path.dirname(resolvedPath);
+  if (!fs.existsSync(parentDir)) {
+    fs.mkdirSync(parentDir, { recursive: true });
+  }
+
+  const sanitized: SearxngConfig = {
+    endpoint: config.endpoint.trim().replace(/\/+$/, ""),
+    apiKey: config.apiKey?.trim() || "",
+    categories: config.categories?.trim() || "general",
+    defaultEngines: config.defaultEngines?.trim() || "",
+    timeoutMs:
+      typeof config.timeoutMs === "number" && config.timeoutMs > 0 ? config.timeoutMs : 10000,
+  };
+
+  fs.writeFileSync(resolvedPath, JSON.stringify(sanitized, null, 2), "utf-8");
+}
+

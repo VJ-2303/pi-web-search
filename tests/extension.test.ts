@@ -11,15 +11,24 @@ describe("Pi Extension Registration", () => {
       registerTool: vi.fn((toolDef: any) => {
         registeredTools.set(toolDef.name, toolDef);
       }),
+      registerCommand: vi.fn(),
     };
   });
 
-  it("registers both web_search and web_fetch tools with correct annotations", () => {
+  it("registers both tools and the searxng slash command", () => {
     registerExtension(mockPi);
 
     expect(mockPi.registerTool).toHaveBeenCalledTimes(2);
     expect(registeredTools.has("web_search")).toBe(true);
     expect(registeredTools.has("web_fetch")).toBe(true);
+
+    expect(mockPi.registerCommand).toHaveBeenCalledWith(
+      "searxng",
+      expect.objectContaining({
+        description: expect.any(String),
+        handler: expect.any(Function),
+      })
+    );
 
     const searchTool = registeredTools.get("web_search");
     expect(searchTool.annotations?.readOnlyHint).toBe(true);

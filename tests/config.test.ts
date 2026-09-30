@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { loadConfig, ensureConfigFile, getDefaultConfigPath } from "../src/config.js";
+import { loadConfig, saveConfig, ensureConfigFile, getDefaultConfigPath } from "../src/config.js";
 
 describe("Configuration Manager", () => {
   let tmpDir: string;
@@ -67,6 +67,29 @@ describe("Configuration Manager", () => {
 
     const parsed = JSON.parse(fs.readFileSync(testConfigPath, "utf-8"));
     expect(parsed.endpoint).toBe("http://localhost:8080");
+  });
+
+  it("saves updated config to disk", () => {
+    const newConfig = {
+      endpoint: "https://searx.example.com",
+      apiKey: "test-token",
+      categories: "science,it",
+      defaultEngines: "google",
+      timeoutMs: 12000,
+    };
+    saveConfig(newConfig, testConfigPath);
+
+    expect(fs.existsSync(testConfigPath)).toBe(true);
+    const loaded = loadConfig(testConfigPath);
+    expect(loaded.endpoint).toBe("https://searx.example.com");
+    expect(loaded.apiKey).toBe("test-token");
+    expect(loaded.categories).toBe("science,it");
+    expect(loaded.defaultEngines).toBe("google");
+    expect(loaded.timeoutMs).toBe(12000);
+  });
+
+  it("throws error when saving config with invalid endpoint", () => {
+    expect(() => saveConfig({ endpoint: "" }, testConfigPath)).toThrow(/Invalid endpoint/);
   });
 
   it("resolves default path to ~/.pi/agent/searxng.json", () => {

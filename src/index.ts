@@ -4,6 +4,7 @@ import { searchSearxng } from "./searxng.js";
 import { fetchUrl } from "./fetcher.js";
 import { processWebResponse } from "./extractor.js";
 import { saveToCache } from "./cache.js";
+import { handleSearxngCommand } from "./commands.js";
 
 // Minimal interface matching Pi ExtensionAPI tool registration
 export interface ExtensionAPI {
@@ -29,6 +30,13 @@ export interface ExtensionAPI {
       details?: Record<string, any>;
     }>;
   }): void;
+  registerCommand?(
+    name: string,
+    def: {
+      description: string;
+      handler: (args: string, ctx: any) => Promise<void>;
+    }
+  ): void;
 }
 
 export default function registerExtension(pi: ExtensionAPI): void {
@@ -140,4 +148,15 @@ export default function registerExtension(pi: ExtensionAPI): void {
       };
     },
   });
+
+  // 3. /searxng Slash Command
+  if (typeof pi.registerCommand === "function") {
+    pi.registerCommand("searxng", {
+      description: "Manage SearXNG configuration and verify endpoint health",
+      handler: async (args: string, ctx: any) => {
+        await handleSearxngCommand(args, ctx);
+      },
+    });
+  }
 }
+

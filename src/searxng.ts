@@ -142,3 +142,91 @@ export async function searchSearxng(
     markdown,
   };
 }
+
+export interface HealthResult {
+  healthy: boolean;
+  status: number;
+  latencyMs: number;
+  message: string;
+  jsonEnabled: boolean;
+}
+
+export async function checkSearxngHealth(
+  config: SearxngConfig,
+  signal?: AbortSignal
+): Promise<HealthResult> {
+  const timeoutMs = config.timeoutMs || 5000;
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+
+  const url = new URL("/search", config.endpoint);
+  url.searchParams.set("q", "ping");
+  url.searchParams.set("format", "json");
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+  };
+  if (config.apiKey) {
+    headers["Authorization"] = `Bearer ${config.apiKey}`;
+  }
+
+  const start = performance.now();
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      method: "GET",
+      headers,
+      signal: combinedSignal,
+    });
+  } catch (err: any) {
+    const latencyMs = Math.round(performance.now() - start);
+    return {
+      healthy: false,
+      status: 0,
+      latencyMs,
+      message: `Failed to connect: ${err.message}`,
+      jsonEnabled: false,
+    };
+  }
+
+  const latencyMs = Math.round(performance.now() - start);
+
+  if (!response.ok) {
+    const errorText =
+      typeof response.text === "function" ? await response.text().catch(() => "") : "";
+    const isJsonDisabled =
+      response.status === 403 &&
+      (errorText.toLowerCase().includes("json") || errorText.toLowerCase().includes("format"));
+    return {
+      healthy: false,
+      status: response.status,
+      latencyMs,
+      message: isJsonDisabled
+        ? "SearXNG JSON format disabled. Enable 'json' in SearXNG settings.yml (search.formats: [html, json])"
+        : `SearXNG returned HTTP ${response.status}: ${errorText || response.statusText}`,
+      jsonEnabled: !isJsonDisabled,
+    };
+  }
+
+  try {
+    await response.json();
+    return {
+      healthy: true,
+      status: 200,
+      latencyMs,
+      message: `SearXNG is healthy (${latencyMs}ms)`,
+      jsonEnabled: true,
+    };
+  } catch {
+    return {
+      healthy: false,
+      status: response.status,
+      latencyMs,
+      message: "SearXNG returned non-JSON response. JSON format disabled in settings.yml",
+      jsonEnabled: false,
+    };
+  }
+}
+
