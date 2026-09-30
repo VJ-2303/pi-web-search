@@ -1,5 +1,5 @@
 import { Type } from "@sinclair/typebox";
-import { loadConfig } from "./config.js";
+import { loadConfig, ensureConfigFile } from "./config.js";
 import { searchSearxng } from "./searxng.js";
 import { fetchUrl } from "./fetcher.js";
 import { processWebResponse } from "./extractor.js";
@@ -32,6 +32,13 @@ export interface ExtensionAPI {
 }
 
 export default function registerExtension(pi: ExtensionAPI): void {
+  // Ensure ~/.pi/agent/searxng.json template exists immediately upon extension load
+  try {
+    ensureConfigFile();
+  } catch {
+    // Non-blocking if directory permissions or environment restrict file writes
+  }
+
   // 1. web_search Tool
   pi.registerTool({
     name: "web_search",

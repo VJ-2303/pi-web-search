@@ -22,15 +22,23 @@ export function getDefaultConfigPath(): string {
   return path.join(os.homedir(), ".pi", "agent", "searxng.json");
 }
 
-export function loadConfig(configPath?: string): SearxngConfig {
+export function ensureConfigFile(configPath?: string): string {
   const resolvedPath = configPath || getDefaultConfigPath();
-
   if (!fs.existsSync(resolvedPath)) {
     const parentDir = path.dirname(resolvedPath);
     if (!fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });
     }
     fs.writeFileSync(resolvedPath, JSON.stringify(DEFAULT_CONFIG, null, 2), "utf-8");
+  }
+  return resolvedPath;
+}
+
+export function loadConfig(configPath?: string): SearxngConfig {
+  const resolvedPath = configPath || getDefaultConfigPath();
+
+  if (!fs.existsSync(resolvedPath)) {
+    ensureConfigFile(resolvedPath);
     throw new Error(
       `SearXNG config not found. Created template at: ${resolvedPath}\nPlease update the endpoint in the config file.`
     );

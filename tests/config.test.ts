@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { loadConfig, getDefaultConfigPath } from "../src/config.js";
+import { loadConfig, ensureConfigFile, getDefaultConfigPath } from "../src/config.js";
 
 describe("Configuration Manager", () => {
   let tmpDir: string;
@@ -57,6 +57,16 @@ describe("Configuration Manager", () => {
     const deepPath = path.join(tmpDir, "level1", "level2", "searxng.json");
     expect(() => loadConfig(deepPath)).toThrow(/SearXNG config not found/);
     expect(fs.existsSync(deepPath)).toBe(true);
+  });
+
+  it("creates template without throwing using ensureConfigFile", () => {
+    expect(fs.existsSync(testConfigPath)).toBe(false);
+    const created = ensureConfigFile(testConfigPath);
+    expect(created).toBe(testConfigPath);
+    expect(fs.existsSync(testConfigPath)).toBe(true);
+
+    const parsed = JSON.parse(fs.readFileSync(testConfigPath, "utf-8"));
+    expect(parsed.endpoint).toBe("http://localhost:8080");
   });
 
   it("resolves default path to ~/.pi/agent/searxng.json", () => {
