@@ -54,7 +54,11 @@ If the file does not exist when a tool is called, a template is automatically cr
 Run in your terminal or inside a Pi session:
 
 ```bash
-pi install github:VJ-2303/pi-web-search
+# Recommended
+pi install https://github.com/VJ-2303/pi-web-search
+
+# Or via git protocol
+pi install git:github.com/VJ-2303/pi-web-search
 ```
 
 ### Local Development / Manual Load
