@@ -14,7 +14,7 @@ const DEFAULT_CONFIG: SearxngConfig = {
   endpoint: "http://localhost:8080",
   apiKey: "",
   categories: "general",
-  defaultEngines: "",
+  defaultEngines: "google,bing",
   timeoutMs: 10000,
 };
 
