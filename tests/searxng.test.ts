@@ -197,4 +197,33 @@ describe("SearXNG Client", () => {
     expect(res.results).toEqual([]);
     expect(res.markdown).toBe('No results found for "test".');
   });
+
+  it("includes infoboxes in search results when available", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => ({
+          results: [],
+          infoboxes: [
+            {
+              infobox: "Linux",
+              content: "Linux is a free and open-source operating system.",
+              urls: [{ title: "Wikipedia", url: "https://en.wikipedia.org/wiki/Linux" }],
+              engine: "wikipedia",
+            },
+          ],
+        }),
+      })
+    );
+
+    const res = await searchSearxng(mockConfig, { query: "Linux" });
+    expect(res.results.length).toBe(1);
+    expect(res.results[0].title).toBe("Linux");
+    expect(res.results[0].url).toBe("https://en.wikipedia.org/wiki/Linux");
+    expect(res.results[0].content).toContain("Linux is a free");
+    expect(res.markdown).toContain("[Linux](https://en.wikipedia.org/wiki/Linux)");
+  });
 });

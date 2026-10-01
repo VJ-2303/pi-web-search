@@ -122,8 +122,32 @@ export async function searchSearxng(
     throw new Error(`SearXNG returned error ${response.status} ${response.statusText}: ${errorText}`);
   }
 
-  const data = (await response.json()) as { results?: any[] };
-  const rawResults = Array.isArray(data.results) ? data.results : [];
+  const data = (await response.json()) as {
+    results?: any[];
+    infoboxes?: any[];
+  };
+
+  const rawResults: any[] = [];
+
+  // Include infoboxes (e.g. Wikipedia knowledge cards) at top
+  if (Array.isArray(data.infoboxes)) {
+    for (const info of data.infoboxes) {
+      const infoUrl = info.urls?.[0]?.url || info.id;
+      if (infoUrl) {
+        rawResults.push({
+          title: info.infobox || info.urls?.[0]?.title || "Infobox",
+          url: infoUrl,
+          content: info.content || "",
+          engine: info.engine || "infobox",
+        });
+      }
+    }
+  }
+
+  if (Array.isArray(data.results)) {
+    rawResults.push(...data.results);
+  }
+
   const limit = params.num_results && params.num_results > 0 ? params.num_results : 4;
   const sliced = rawResults.slice(0, limit);
 

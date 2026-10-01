@@ -1,6 +1,6 @@
 {
   "name": "pi-web-search",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "High-efficiency web search and content extraction extension for Pi coding agent",
   "keywords": [
     "pi-package"
