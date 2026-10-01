@@ -18,6 +18,33 @@ const BROWSER_HEADERS: Record<string, string> = {
 };
 
 const MAX_FETCH_BYTES = 5_000_000; // 5 MB body cap
+const MAX_ERROR_EXCERPT_CHARS = 200; // snippet of error page body shown in messages
+
+function charsetFromContentType(contentType: string): string | undefined {
+  const m = /charset\s*=\s*"?([\w:.-]+)"?/i.exec(contentType);
+  return m ? m[1] : undefined;
+}
+
+// HTML sniffing only ever needs the leading bytes; meta charset is always near the top
+function charsetFromMetaHead(headBytes: Uint8Array): string | undefined {
+  const ascii = new TextDecoder("ascii", { fatal: false }).decode(headBytes.slice(0, 2048));
+  const m = /<meta[^>]+charset\s*=\s*["']?([\w:.-]+)/i.exec(ascii);
+  return m ? m[1] : undefined;
+}
+
+function decodeBody(bytes: Uint8Array, declaredCharset?: string): string {
+  const candidates = [declaredCharset, charsetFromMetaHead(bytes), "utf-8"].filter(
+    (c): c is string => Boolean(c)
+  );
+  for (const label of candidates) {
+    try {
+      return new TextDecoder(label).decode(bytes);
+    } catch {
+      // unknown/unsupported label, try the next candidate
+    }
+  }
+  return new TextDecoder("utf-8").decode(bytes);
+}
 
 export async function fetchUrl(
   url: string,
@@ -48,10 +75,22 @@ export async function fetchUrl(
   }
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: HTTP ${response.status} ${response.statusText}`);
+    const bodySnippet = await response
+      .text()
+      .then((t) =>
+        t
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, MAX_ERROR_EXCERPT_CHARS)
+      )
+      .catch(() => "");
+    const detail = bodySnippet ? ` — ${bodySnippet}` : "";
+    throw new Error(`Failed to fetch ${url}: HTTP ${response.status} ${response.statusText}${detail}`);
   }
 
   const contentType = response.headers.get("content-type") || "text/html";
+  const declaredCharset = charsetFromContentType(contentType);
 
   const declaredLength = Number(response.headers.get("content-length") || 0);
   if (declaredLength > MAX_FETCH_BYTES) {
@@ -84,7 +123,7 @@ export async function fetchUrl(
       merged.set(chunk, pos);
       pos += chunk.byteLength;
     }
-    text = new TextDecoder("utf-8").decode(merged);
+    text = decodeBody(merged, declaredCharset);
   } else {
     text = await response.text();
     if (text.length > MAX_FETCH_BYTES) {

@@ -142,15 +142,18 @@ export default function registerExtension(pi: ExtensionAPI): void {
       const cacheNotice = cacheResult
         ? `*Cached full content (${cacheResult.charCount.toLocaleString()} chars) to: ${cacheResult.filePath}*\n\n`
         : "";
+      const redirectNotice =
+        fetched.url !== params.url ? `*Resolved: ${fetched.url}*\n\n` : "";
 
       return {
-        content: [{ type: "text", text: cacheNotice + processed.content }],
+        content: [{ type: "text", text: cacheNotice + redirectNotice + processed.content }],
         details: {
           url: fetched.url,
           title: processed.title,
           truncated: processed.truncated,
+          totalLength: processed.totalLength,
           cachedFilePath: cacheResult?.filePath,
-          totalChars: cacheResult?.charCount,
+          totalChars: cacheResult?.charCount ?? processed.totalLength,
         },
       };
     },

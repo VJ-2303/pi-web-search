@@ -97,6 +97,95 @@ describe("Web Fetcher", () => {
     await expect(fetchUrl("https://example.com/chunky")).rejects.toThrow(/too large/i);
   });
 
+  it("decodes body using charset declared in Content-Type header", async () => {
+    // "caf\u00e9" encoded in ISO-8859-1: 0x63 0x61 0x66 0xe9
+    const latin1 = new Uint8Array([0x63, 0x61, 0x66, 0xe9]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        url: "https://example.com/latin1",
+        headers: new Headers({ "content-type": "text/html; charset=iso-8859-1" }),
+        body: new ReadableStream({
+          start(c: any) {
+            c.enqueue(latin1);
+            c.close();
+          },
+        }),
+      })
+    );
+
+    const result = await fetchUrl("https://example.com/latin1");
+    expect(result.text).toBe("caf\u00e9");
+  });
+
+  it("falls back to utf-8 when no charset is declared", async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("plain utf8 caf\u00e9"));
+        controller.close();
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        url: "https://example.com/utf8",
+        headers: new Headers({ "content-type": "text/html" }),
+        body: stream,
+      })
+    );
+
+    const result = await fetchUrl("https://example.com/utf8");
+    expect(result.text).toBe("plain utf8 caf\u00e9");
+  });
+
+  it("falls back to meta charset when header omits charset", async () => {
+    // ISO-8859-1 bytes for <meta charset=windows-1252> plus "caf\u00e9"
+    const bytes = new TextEncoder().encode(
+      '<html><head><meta charset="windows-1252"></head><body>'
+    );
+    const latin = new Uint8Array([...bytes, 0x63, 0x61, 0x66, 0xe9, 0x3c]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        url: "https://example.com/meta",
+        headers: new Headers({ "content-type": "text/html" }),
+        body: new ReadableStream({
+          start(c: any) {
+            c.enqueue(latin);
+            c.close();
+          },
+        }),
+      })
+    );
+
+    const result = await fetchUrl("https://example.com/meta");
+    expect(result.text).toContain("caf\u00e9");
+  });
+
+  it("includes response body excerpt in HTTP error messages", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        url: "https://example.com/blocked",
+        headers: new Headers({ "content-type": "text/html" }),
+        text: async () => "<html><body>Access denied by bot protection policy</body></html>",
+      })
+    );
+
+    await expect(fetchUrl("https://example.com/blocked")).rejects.toThrow(
+      /Access denied by bot protection/
+    );
+  });
+
   it("handles network connection failure", async () => {
     vi.stubGlobal(
       "fetch",

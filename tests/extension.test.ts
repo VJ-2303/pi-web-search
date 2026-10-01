@@ -96,6 +96,53 @@ describe("Pi Extension Registration", () => {
     vi.unstubAllGlobals();
   });
 
+  it("reports total content length in visible text when web_fetch output is truncated", async () => {
+    registerExtension(mockPi);
+    const fetchTool = registeredTools.get("web_fetch");
+    const longBody = `<article><h1>Big</h1><p>${"y".repeat(5000)}</p></article>`;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        url: "https://example.com/big",
+        headers: new Headers({ "content-type": "text/html" }),
+        text: async () => longBody,
+      })
+    );
+
+    const result = await fetchTool.execute("call-5", { url: "https://example.com/big", max_length: 500 });
+    // Truncation state must be visible to the model, not only in details
+    expect(result.details.truncated).toBe(true);
+    expect(result.details.totalChars).toBeGreaterThan(5000);
+    // Cache notice must report the page's true size, not just what fit
+    expect(result.content[0].text).toMatch(/5,?\d{3} chars/);
+
+    vi.unstubAllGlobals();
+  });
+
+  it("shows resolved URL in output when the fetch was redirected", async () => {
+    registerExtension(mockPi);
+    const fetchTool = registeredTools.get("web_fetch");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        url: "https://final.example/page",
+        headers: new Headers({ "content-type": "text/html" }),
+        text: async () => "<article><h1>T</h1><p>Body</p></article>",
+      })
+    );
+
+    const result = await fetchTool.execute("call-6", { url: "https://short.example/abc" });
+    expect(result.content[0].text).toContain("Resolved: https://final.example/page");
+
+    vi.unstubAllGlobals();
+  });
+
   it("propagates errors from searchSearxng to caller in web_search", async () => {
     registerExtension(mockPi);
     const searchTool = registeredTools.get("web_search");
