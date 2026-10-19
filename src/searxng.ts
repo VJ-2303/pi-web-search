@@ -20,18 +20,41 @@ export interface SearchResponse {
   markdown: string;
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  quot: '"',
+  apos: "'",
+  lt: "<",
+  gt: ">",
+  nbsp: " ",
+  rsquo: "\u2019",
+  lsquo: "\u2018",
+  rdquo: "\u201d",
+  ldquo: "\u201c",
+  hellip: "\u2026",
+  mdash: "\u2014",
+  ndash: "\u2013",
+};
+
+function decodeCodePoint(cp: number): string {
+  try {
+    return String.fromCodePoint(cp);
+  } catch {
+    return "";
+  }
+}
+
 export function cleanSnippetText(raw: string): string {
   return raw
     .replace(/<[^>]+>/g, "")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => decodeCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec: string) => decodeCodePoint(parseInt(dec, 10)))
+    .replace(/&([a-z]+);/gi, (match: string, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? match)
     .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
+
+const MAX_SNIPPET_CHARS = 300;
 
 export function formatSearchResults(query: string, results: SearchResultItem[]): string {
   if (results.length === 0) {
@@ -45,7 +68,10 @@ export function formatSearchResults(query: string, results: SearchResultItem[]):
     const safeUrl = item.url.replace(/\(/g, "%28").replace(/\)/g, "%29");
     lines.push(`${index + 1}. **[${cleanTitle}](${safeUrl})**`);
     if (item.content) {
-      const cleanSnippet = cleanSnippetText(item.content);
+      let cleanSnippet = cleanSnippetText(item.content);
+      if (cleanSnippet.length > MAX_SNIPPET_CHARS) {
+        cleanSnippet = `${cleanSnippet.slice(0, MAX_SNIPPET_CHARS).trimEnd()}…`;
+      }
       lines.push(`   > ${cleanSnippet}`);
     }
     if (item.publishedDate) {
@@ -122,10 +148,14 @@ export async function searchSearxng(
     throw new Error(`SearXNG returned error ${response.status} ${response.statusText}: ${errorText}`);
   }
 
-  const data = (await response.json()) as {
-    results?: any[];
-    infoboxes?: any[];
-  };
+  let data: { results?: any[]; infoboxes?: any[] };
+  try {
+    data = (await response.json()) as { results?: any[]; infoboxes?: any[] };
+  } catch {
+    throw new Error(
+      "SearXNG returned a non-JSON response. The instance may be behind a proxy or blocking requests; verify the endpoint with /searxng status."
+    );
+  }
 
   const rawResults: any[] = [];
 
@@ -148,8 +178,17 @@ export async function searchSearxng(
     rawResults.push(...data.results);
   }
 
+  const seen = new Set<string>();
+  const unique: any[] = [];
+  for (const item of rawResults) {
+    const url = String(item.url || "").trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    unique.push(item);
+  }
+
   const limit = params.num_results && params.num_results > 0 ? params.num_results : 4;
-  const sliced = rawResults.slice(0, limit);
+  const sliced = unique.slice(0, limit);
 
   const results: SearchResultItem[] = sliced.map((item) => ({
     title: String(item.title || "").trim(),

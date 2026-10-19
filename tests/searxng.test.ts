@@ -198,6 +198,75 @@ describe("SearXNG Client", () => {
     expect(res.markdown).toBe('No results found for "test".');
   });
 
+  it("throws a clear error when SearXNG returns 200 with a non-JSON body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "text/html" }),
+        json: async () => {
+          throw new SyntaxError("Unexpected token '<'");
+        },
+      })
+    );
+
+    await expect(searchSearxng(mockConfig, { query: "test" })).rejects.toThrow(
+      /non-JSON response/
+    );
+  });
+
+  it("deduplicates results with the same URL", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => ({
+          query: "test",
+          results: [
+            { title: "A", url: "https://example.com/a", content: "" },
+            { title: "A duplicate", url: "https://example.com/a", content: "" },
+            { title: "B", url: "https://example.com/b", content: "" },
+            { title: "C", url: "https://example.com/c", content: "" },
+            { title: "D", url: "https://example.com/d", content: "" },
+          ],
+        }),
+      })
+    );
+
+    const res = await searchSearxng(mockConfig, { query: "test" });
+    expect(res.results.length).toBe(4);
+    const urls = res.results.map((r) => r.url);
+    expect(new Set(urls).size).toBe(urls.length);
+    expect(urls).toContain("https://example.com/d");
+  });
+
+  it("decodes numeric, hex, and common named entities in snippets", () => {
+    const md = formatSearchResults("test", [
+      {
+        title: "T",
+        url: "https://example.com",
+        content: "It&#x27;s smart &#8212; &rsquo;quoted&rsquo; &hellip; &#123;brace&#125;",
+      },
+    ]);
+    expect(md).toContain("It's smart — ’quoted’ … {brace}");
+    expect(md).not.toContain("&#");
+    expect(md).not.toContain("&rsquo;");
+  });
+
+  it("caps long snippets at 300 characters with an ellipsis", () => {
+    const longContent = "x".repeat(400);
+    const md = formatSearchResults("test", [
+      { title: "T", url: "https://example.com", content: longContent },
+    ]);
+    expect(md).toContain("…");
+    expect(md).not.toContain(longContent);
+    const snippetLine = md.split("\n").find((l) => l.includes(">")) ?? "";
+    expect(snippetLine.length).toBeLessThan(320);
+  });
+
   it("includes infoboxes in search results when available", async () => {
     vi.stubGlobal(
       "fetch",
