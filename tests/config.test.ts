@@ -43,6 +43,15 @@ describe("Configuration Manager", () => {
     expect(created.endpoint).toBe("http://localhost:8080");
   });
 
+  it("template config leaves defaultEngines empty so SearXNG aggregates all enabled engines", () => {
+    expect(fs.existsSync(testConfigPath)).toBe(false);
+
+    ensureConfigFile(testConfigPath);
+
+    const created = JSON.parse(fs.readFileSync(testConfigPath, "utf-8"));
+    expect(created.defaultEngines).toBe("");
+  });
+
   it("throws error when config has invalid endpoint", () => {
     fs.writeFileSync(testConfigPath, JSON.stringify({ endpoint: 123 }), "utf-8");
     expect(() => loadConfig(testConfigPath)).toThrow(/missing or invalid "endpoint"/);
